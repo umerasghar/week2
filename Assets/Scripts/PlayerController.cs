@@ -7,16 +7,21 @@ public class PlayerController : MonoBehaviour
     enum AnimationStates {idle,run,jump,attack}
     public Player player;
     private Rigidbody2D rb2D;
+
     private Animator animator;
     public float speed = 50f;
+    public float jumpForce = 50;
     private bool playergrounded = true;
     bool right, left, up, attack;
+    float playerFall = 2.5f;
+    Rigidbody2D projectileRB;
     // Start is called before the first frame update
     void Start()
     {
-        
-        rb2D = player.Rb2D;
+
+        rb2D = player.playerRigidBody;
         animator = player.PlayerAnimator;
+       
     }
     private void Update()
     {
@@ -52,6 +57,7 @@ public class PlayerController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.LeftControl))
         {
+            ThrowProjectile();
             attack = true;
         }
         if (Input.GetKeyUp(KeyCode.LeftControl))
@@ -60,38 +66,63 @@ public class PlayerController : MonoBehaviour
         }
 
     }
+    public void ThrowProjectile()
+    {
+        if (!GameManager.canThrow)
+        {
+            GameObject proj = Instantiate(player.PlayerProjectile);
+            proj.transform.parent = GameManager.instance.mainCanvas.transform;
+            proj.transform.SetSiblingIndex(1);
+            proj.transform.position = GameManager.instance.playerMain.transform.position;
+            proj.transform.localScale = new Vector3(1f, 1f, 1f);
+            projectileRB = proj.GetComponent<Rigidbody2D>();
+            projectileRB.AddForce(new Vector2(150f, 10f), ForceMode2D.Impulse);
+            GameManager.canThrow = true;
+        }
+
+    }
     private void FixedUpdate()
     {
 
         if (right)
         {
-            player.CurrentState = 1;
+            player.CurrentState = (int)AnimationStates.run;
             this.gameObject.transform.localScale = new Vector3(1f, 1f, 1f);
             this.gameObject.transform.Translate(Vector3.right * speed * Time.deltaTime);
         }
         else if (left)
         {
-            player.CurrentState = 1;
+            player.CurrentState = (int)AnimationStates.run;
             this.gameObject.transform.localScale = new Vector3(-1f, 1f, 1f);
             this.gameObject.transform.Translate(Vector3.left * speed * Time.deltaTime);
         }
-        else if (up)
-        {
-            if (playergrounded)
-            {
-                player.CurrentState = 2;
-                rb2D.AddForce(new Vector2(0, 700));
-                playergrounded = false;
-            }
-        }
         else if (attack)
         {
-            player.CurrentState = 3;
+            player.CurrentState = (int)AnimationStates.attack;
+          
         }
         else
         {
-            player.CurrentState = 0;
+            player.CurrentState = (int)AnimationStates.idle;
         }
+
+        if (up)
+        {
+            if (playergrounded)
+            {
+
+                player.CurrentState = (int)AnimationStates.jump;
+                // rb2D.AddForce(new Vector2(0, 500*speed*Time.deltaTime));
+                rb2D.velocity = Vector2.up * jumpForce;
+                if (rb2D.velocity.y < 0)
+                {
+                    rb2D.velocity += Vector2.up * Physics2D.gravity.y * (playerFall - 1) * Time.deltaTime;
+                }
+                playergrounded = false;
+            }
+        }
+
+
         ChangeState();
     }
     void ChangeState()
@@ -103,7 +134,8 @@ public class PlayerController : MonoBehaviour
         if (collision.gameObject.tag == "Ground")
         {
             playergrounded = true;
-            player.CurrentState = 0;
+              player.CurrentState = (int)AnimationStates.idle;
+            ChangeState();
         }
     }
 }
